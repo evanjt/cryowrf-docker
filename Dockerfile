@@ -118,7 +118,7 @@ WORKDIR /tmp/CRYOWRF
 RUN git checkout v1.0
 # WORKDIR /tmp/CRYOWRF/snpack_for_wrf
 # RUN mkdir -p /tmp/CRYOWRF/snpack_for_wrf/snow_libs
-ENV WRF_SRC_ROOT_DIR=$HOME/CRYOWRF/WRF
+ENV WRF_SRC_ROOT_DIR=/tmp/CRYOWRF/WRF
 # ENV LD_LIBRARY_PATH=/home/wever/netcdf/usr/lib:/home/wever/mpich/usr/lib/:/home/wever/jasper-1.900.29/usr/lib/:$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/
 
 ENV CC=gcc
@@ -165,36 +165,6 @@ RUN cmake -DMETEOIO_INCLUDE_DIR=/tmp/CRYOWRF/snpack_for_wrf/snow_libs/include -D
 
 # Build coupler
 WORKDIR /tmp/CRYOWRF/snpack_for_wrf/main_coupler
-# RUN mv libcoupler.a /tmp/CRYOWRF/snpack_for_wrf/snow_libs/lib
-
-# Overwrite the Makefile:
-# RUN cat <<EOF > Makefile
-# FC = gfortran
-# CXX = g++
-
-# FCFLAGS = -O3 -g -fbacktrace -ffree-line-length-512
-# CCFLAGS = -O3 -g
-
-# LIBS = -L../snow_libs/lib -lsnow
-
-# OBJS = coupler_mod.o funcs.o coupler_capi.o Coupler.o
-
-# all: libcoupler.a
-
-# libcoupler.a: $(OBJS)
-# 	ar rcs $@ $(OBJS)
-
-# %.o: %.f90
-# 	$(FC) $(FCFLAGS) -c $< -o $@ -I../snow_libs/include
-
-# %.o: %.cpp
-# 	$(CXX) $(CCFLAGS) -c $< -o $@ -I../snow_libs/include
-
-# .PHONY: clean
-
-# clean:
-# 	rm -rf *.o *.mod test.x *.a *.so
-# EOF
 RUN gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 coupler_mod.f90 -I/tmp/CRYOWRF/snpack_for_wrf/snow_libs/include
 RUN gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 funcs.f90 -I/tmp/CRYOWRF/snpack_for_wrf/snow_libs/include
 RUN g++ -c -O3 -g coupler_capi.cpp -I../snow_libs/include
@@ -206,67 +176,85 @@ RUN mv *.mod /tmp/CRYOWRF/snpack_for_wrf/snow_libs/include/coupler
 RUN make clean
 
 
-# RUN make clean && make libcoupler.a
-
-
-
-
-# RUN bash ./compiler.meteoio && bash ./compiler.snowpack && bash ./compiler.coupler
 ENV SNOWLIBS=/tmp/CRYOWRF/snpack_for_wrf
 
-# compile meteoio first
+# FROM gcc:4.8.5 as wrf_stage
+# FROM gcc:4.9 as wrf_stage
+# Following WRF instructions https://und.edu/research/computational-research-center/tutorials/program-tutorials/install_wrf.html
+# COPY --from=build_stage /tmp/CRYOWRF /tmp/CRYOWRF
 
-# mkdir -p ./snow_libs
+# ENV HOME=/tmp
+# ENV EM_CORE=1
+# ENV NMM_CORE=0
+# ENV WRF_CHEM=1
+# ENV WRF_KPP=1
+# # ENV NETCDF=$HOME/netcdf
+# ENV YACC='/share/apps/byacc/bin/yacc -d'
+# ENV FLEX=/usr/bin
+# ENV FLEX_LIB_DIR=/usr/lib64
+# ENV KPP_HOME=$HOME/WRFV3/chem/KPP/kpp/kpp-2.1
+# RUN echo "export PATH=$NETCDF/bin:$KPP_HOME/bin:$PATH" >> ~/.bashrc
+# ENV SED=/bin/sed
+# ENV WRFIO_NCD_LARGE_FILE_SUPPORT=1
+# RUN echo "export WRF_SRC_ROOT_DIR=$HOME/WRFV3" >> ~/.bashrc
+# ENV CC=gcc
+# ENV CXX=g++
+# ENV FC=gfortran
+# ENV F77=gfortran
+# ENV FFLAGS=–m64
+# ENV FCFLAGS=–m64
 
-# cd ./meteoio
-# mkdir ./build
-# cd ./build
-# cmake -DCMAKE_INSTALL_PREFIX=../../snow_libs ..
-# make -j9
-# make install
-# cd ..
-# rm -rf ./build ./lib/*
-# cd ..
+# # Get NetCDF 4.4.0
+# WORKDIR /tmp
+# RUN wget --no-check-certificate https://github.com/Unidata/netcdf-c/archive/v4.4.0.tar.gz
+# RUN tar -zxvf v4.4.0.tar.gz
+# WORKDIR /tmp/netcdf-c-4.4.0
+# # RUN ln -s /bin/sed /usr/bin/sed
+# RUN ./configure --prefix=$NETCDF --disable-dap --disable-netcdf-4 && make check install
 
-# export SNOWLIBS=$(pwd)
+# FROM build_stage as netcdf_fortran
 
+# FROM gcc:4.9 as gcc49
+# COPY --from=wrf_stage /tmp /tmp
+# Get NetCDF-Fortran 4.4.3
+# WORKDIR /tmp
+# RUN wget --no-check-certificate https://github.com/Unidata/netcdf-fortran/archive/v4.4.3.tar.gz
+# RUN tar -zxvf v4.4.3.tar.gz
 
-# # compile snowpack second
+# ENV NCDIR=$NETCDF
+# ENV NFDIR=$NETCDF
+# ENV CC=/usr/local/bin/gcc
+# # ENV FC=/usr/local/bin/gfortran
+# RUN echo "export LD_LIBRARY_PATH=$NCDIR/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
 
-# mkdir -p ./snow_libs
+# WORKDIR /tmp/netcdf-fortran-4.4.3
+# RUN which gfortran
+# COPY --from=gcc:4.9 /usr/local/bin/gfortran /usr/local/bin/gfortran
+# ENV FC=/usr/local/bin/gfortran
+# ENV F77=/usr/local/bin/gfortran
+# RUN ln -s /usr/local/bin/gfortran /usr/bin/gfortran
+# RUN ls /usr/local/bin
+# RUN ls /usr/bin
+# find / -name 'gfortran'
+# RUN ./configure --prefix=$NFDIR && make install
 
-# cd ./snowpack
-# mkdir ./build
-# cd ./build
-# cmake -DMETEOIO_INCLUDE_DIR=../../snow_libs/include -DMETEOIO_LIBRARY=../../snow_libs/lib/libmeteoio.a -DCMAKE_INSTALL_PREFIX=../../snow_libs ..
-# make -j9
-# make install
-# cd ..
-# rm -rf ./build ./lib/*
-# cd ..
+########
+WORKDIR /tmp/CRYOWRF/WRF
 
-# export SNOWLIBS=$(pwd)
+# WORKDIR /
+# RUN cp -r /tmp/CRYOWRF /
+# WORKDIR /CRYOWRF/WRF
+COPY ./compile /tmp/CRYOWRF/WRF/compile
 
-
-# # Coupler
-# mkdir -p ./snow_libs
-
-# cd ./main_coupler
-# make clean
-# make
-# mv ./libcoupler.a ../snow_libs/lib/
-# mkdir ../snow_libs/include/coupler
-# mv ./*.mod ../snow_libs/include/coupler/
-# make clean
-
-# cd ..
-# export SNOWLIBS=$(pwd)
-
-
-
-
-
-
+RUN apt-get install -y tcsh
+RUN echo 35 | ./configure
+RUN sed -i '131c\SFC             =       gfortran -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
+RUN sed -i '134c\DM_FC           =       mpif90 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
+RUN sed -i '162c\CPP             =      /usr/bin/cpp -P -nostdinc' configure.wrf
+RUN tcsh ./compile -j 6 em_real
+# RUN gcc --version
+# RUN module rm gcc
+# RUN gcc --version
 
 
 

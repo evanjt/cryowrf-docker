@@ -1,5 +1,5 @@
 # Download and unpack sources
-FROM ubuntu:18.04 as download_stage
+FROM ubuntu:22.04 as download_stage
 
 RUN apt-get update \
     && apt-get install -y wget unzip
@@ -23,7 +23,7 @@ RUN unzip jasper-1.900.1.zip
 RUN rm *.tar.gz *.zip
 
 # Build sources
-FROM ubuntu:18.04 as build_stage
+FROM ubuntu:22.04 as build_stage
 COPY --from=download_stage /tmp /tmp
 RUN apt-get update && apt-get install -y \
     gcc gfortran g++ libtool automake autoconf make m4 grads \
@@ -69,8 +69,10 @@ WORKDIR /tmp/netcdf-fortran-4.6.0
 RUN ./configure --prefix=$DIR --disable-shared && make check && make install
 
 # Build mpich
-WORKDIR /tmp/mpich-3.3.1
-RUN ./configure --prefix=$DIR && make && make install
+# WORKDIR /tmp/mpich-3.3.1
+# RUN ./configure --prefix=$DIR && make && make install
+
+RUN apt-get install -y mpich
 
 # Update PATH
 ENV PATH=$DIR/bin:$PATH
@@ -188,7 +190,7 @@ ENV SNOWLIBS=/tmp/CRYOWRF/snpack_for_wrf
 # ENV NMM_CORE=0
 # ENV WRF_CHEM=1
 # ENV WRF_KPP=1
-# # ENV NETCDF=$HOME/netcdf
+# ENV NETCDF=$HOME/netcdf
 # ENV YACC='/share/apps/byacc/bin/yacc -d'
 # ENV FLEX=/usr/bin
 # ENV FLEX_LIB_DIR=/usr/lib64
@@ -248,14 +250,19 @@ COPY ./compile /tmp/CRYOWRF/WRF/compile
 
 RUN apt-get install -y tcsh
 RUN echo 35 | ./configure
-RUN sed -i '131c\SFC             =       gfortran -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
-RUN sed -i '134c\DM_FC           =       mpif90 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
-RUN sed -i '162c\CPP             =      /usr/bin/cpp -P -nostdinc' configure.wrf
+# RUN sed -i '131c\SFC             =       gfortran -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
+# RUN sed -i '134c\DM_FC           =       mpif90 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
+# RUN sed -i '162c\CPP             =      /usr/bin/cpp -P -nostdinc' configure.wrf
 RUN tcsh ./compile -j 6 em_real
 # RUN gcc --version
 # RUN module rm gcc
 # RUN gcc --version
-
+ENV WRF_DIR=/tmp/CRYOWRF/WRF
+WORKDIR /tmp/CRYOWRF/WPS-4.2
+# RUN echo "alias ftn='mpif90'" >> ~/.bashrc
+RUN echo 38 | ./configure
+# RUN sed -i '63c\SFC             =     mpif90' configure.wps
+RUN tcsh ./compile
 
 
 # RUN apt-get install -y wget

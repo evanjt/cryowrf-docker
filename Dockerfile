@@ -253,8 +253,8 @@ RUN apt-get install -y tcsh gfortran-9
 # RUN echo "alias ftn='mpif90'" >> ~/.bashrc
 RUN echo "alias ftn='gfortran-9'" >> ~/.bashrc
 RUN echo 35 | ./configure
-RUN sed -i '131c\SFC             =       gfortran-9 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
-RUN sed -i '134c\DM_FC           =       mpif90 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
+RUN sed -i '131c\SFC             =       gfortran-9' configure.wrf
+RUN sed -i '134c\DM_FC           =       gfortran-9' configure.wrf
 RUN sed -i '162c\CPP             =      /usr/bin/cpp-9 -P -nostdinc' configure.wrf
 RUN sed -i '162c\CPP             =      /usr/bin/cpp-9 -P -nostdinc' configure.wrf
 RUN sed -i '162c\CPP             =      /usr/bin/cpp-9 -P -nostdinc' configure.wrf

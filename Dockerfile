@@ -247,21 +247,25 @@ WORKDIR /tmp/CRYOWRF/WRF
 # RUN cp -r /tmp/CRYOWRF /
 # WORKDIR /CRYOWRF/WRF
 # COPY ./compile /tmp/CRYOWRF/WRF/compile
+ENV SNOWLIBS=/tmp/CRYOWRF/snpack_for_wrf
 
-RUN apt-get install -y tcsh
+RUN apt-get install -y tcsh gfortran-9
 # RUN echo "alias ftn='mpif90'" >> ~/.bashrc
-RUN echo "alias ftn='gfortran'" >> ~/.bashrc
+RUN echo "alias ftn='gfortran-9'" >> ~/.bashrc
 RUN echo 35 | ./configure
-RUN sed -i '131c\SFC             =       gfortran -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
+RUN sed -i '131c\SFC             =       gfortran-9 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
 RUN sed -i '134c\DM_FC           =       mpif90 -fallow-argument-mismatch -fallow-invalid-boz' configure.wrf
-RUN sed -i '162c\CPP             =      /usr/bin/cpp -P -nostdinc' configure.wrf
+RUN sed -i '162c\CPP             =      /usr/bin/cpp-9 -P -nostdinc' configure.wrf
+RUN sed -i '162c\CPP             =      /usr/bin/cpp-9 -P -nostdinc' configure.wrf
+RUN sed -i '162c\CPP             =      /usr/bin/cpp-9 -P -nostdinc' configure.wrf
+
 RUN tcsh ./compile -j 12 em_real
 
 
 ENV WRF_DIR=/tmp/CRYOWRF/WRF
 WORKDIR /tmp/CRYOWRF/WPS-4.2
 
-RUN echo 38 | ./configure
+RUN echo 2 | ./configure
 # RUN sed -i '63c\SFC             =     mpif90' configure.wps
 RUN echo gcc --version
 RUN tcsh ./compile

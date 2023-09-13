@@ -32,7 +32,7 @@ fi
 #########################################################
 echo "Please enter your sudo password, so necessary packages can be installed."
 sudo apt-get update
-sudo apt-get install -y build-essential csh gfortran m4 curl perl mpich libhdf5-mpich-dev libpng-dev netcdf-bin libnetcdff-dev ${extra_packages}
+sudo apt-get install -y build-essential csh gfortran m4 curl perl mpich libhdf5-mpich-dev libpng-dev netcdf-bin libnetcdff-dev cmake ${extra_packages}
 
 package4checks="build-essential csh gfortran m4 curl perl mpich libhdf5-mpich-dev libpng-dev netcdf-bin libnetcdff-dev ${extra_packages}"
 for packagecheck in ${package4checks}; do
@@ -71,6 +71,7 @@ export HDF5=/usr/lib/x86_64-linux-gnu/hdf5/serial
 export LDFLAGS="-L/usr/lib/x86_64-linux-gnu/hdf5/serial/ -L/usr/lib"
 export CPPFLAGS="-I/usr/include/hdf5/serial/ -I/usr/include"
 export LD_LIBRARY_PATH=/usr/lib
+export MAKEFLAGS=-j12
 if [ "$type" = "Chem" ]; then
 echo "export FLEX_LIB_DIR=/usr/lib" >> ~/.bashrc
 echo "export YACC='yacc -d'" >> ~/.bashrc
@@ -99,17 +100,54 @@ cd ..
 cd ..
 [ -d "WRF-${WRFversion}" ] && mv WRF-${WRFversion} WRF-${WRFversion}-old
 [ -f "v${WRFversion}.tar.gz" ] && mv v${WRFversion}.tar.gz v${WRFversion}.tar.gz-old
-wget https://github.com/wrf-model/WRF/archive/v${WRFversion}.tar.gz
-mv v${WRFversion}.tar.gz WRFV${WRFversion}.tar.gz
-tar -zxvf WRFV${WRFversion}.tar.gz
-cd WRF-${WRFversion}
-if [ "$type" = "Chem" ]; then
-export WRF_CHEM=1
-export WRF_KPP=1
-elif [ "$type" = "NMM" ]; then
-export WRF_NMM_CORE=1
-export wrf_core=NMM_CORE
-fi
+#wget https://github.com/wrf-model/WRF/archive/v${WRFversion}.tar.gz
+#mv v${WRFversion}.tar.gz WRFV${WRFversion}.tar.gz
+#tar -zxvf WRFV${WRFversion}.tar.gz
+#cd WRF-${WRFversion}
+
+# Get CRYOWRF
+cd ~/Build_WRF/LIBRARIES/
+
+mkdir -p ~/Build_WRF/LIBRARIES/snow_libs
+
+wget https://gitlabext.wsl.ch/atmospheric-models/CRYOWRF/-/archive/v1.1/CRYOWRF-v1.1.tar.gz
+tar -zxvf CRYOWRF-v1.1.tar.gz
+
+# Set snowlib env var
+export SNOWLIBS=~/Build_WRF/LIBRARIES/snow_libs
+
+## Install MeteoIO & Snowpack
+mkdir -p ~/Build_WRF/LIBRARIES/CRYOWRF-v1.1/snpack_for_wrf/meteoio/build
+cd ~/Build_WRF/LIBRARIES/CRYOWRF-v1.1/snpack_for_wrf/meteoio/build
+cmake -DCMAKE_INSTALL_PREFIX=$SNOWLIBS .. \
+        && make -j9 && make install
+
+# Build Snowpack
+mkdir -p ~/Build_WRF/LIBRARIES/CRYOWRF-v1.1/snpack_for_wrf/snowpack/build
+cd ~/Build_WRF/LIBRARIES/CRYOWRF-v1.1/snpack_for_wrf/snowpack/build
+cmake -DMETEOIO_INCLUDE_DIR=$SNOWLIBS/include \
+        -DMETEOIO_LIBRARY=$SNOWLIBS/lib/libmeteoio.a \
+        -DCMAKE_INSTALL_PREFIX=$SNOWLIBS .. \
+        && make -j9 && make install
+
+# Build coupler
+cd ~/Build_WRF/LIBRARIES/CRYOWRF-v1.1/snpack_for_wrf/main_coupler
+gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 coupler_mod.f90 -I$SNOWLIBS/include
+gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 funcs.f90 -I$SNOWLIBS/include
+g++ -c -O3 -g coupler_capi.cpp -I$SNOWLIBS/include
+g++ -c -O3 -g Coupler.cpp -I$SNOWLIBS/include
+make
+mv libcoupler.a $SNOWLIBS/lib
+mkdir -p $SNOWLIBS/include/coupler
+mv *.mod $SNOWLIBS/include/coupler
+make clean
+
+###############################################
+# Exit here
+exec bash
+exit
+
+# WRF
 sed -i 's#  export USENETCDF=$USENETCDF.*#  export USENETCDF="-lnetcdf"#' configure
 sed -i 's#  export USENETCDFF=$USENETCDFF.*#  export USENETCDFF="-lnetcdff"#' configure
 cd arch
@@ -125,7 +163,7 @@ fi
 if [ "$type" = "NMM" ]; then
 logsave compile.log ./compile nmm_real
 else
-logsave compile.log ./compile em_real
+logsave compile.log ./compile -j 12 em_real
 fi
 cd arch
 cp Config.pl_backup Config.pl

@@ -8,7 +8,7 @@ else
     mpirun_packages="mpich libhdf5-mpich-dev"
 fi
 apt-get install -y build-essential csh gfortran m4 curl perl \
-    ${mpirun_packages} libpng-dev netcdf-bin libnetcdff-dev cmake
+    ${mpirun_packages} libpng-dev netcdf-bin libnetcdff-dev cmake tcsh
 
 
 package4checks="build-essential csh gfortran m4 curl perl ${mpirun_packages} libpng-dev netcdf-bin libnetcdff-dev"

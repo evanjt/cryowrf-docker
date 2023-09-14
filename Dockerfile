@@ -48,20 +48,19 @@ RUN echo "export CRYOWRF_SRC=$DIR/CRYOWRF" >> ~/.bashrc
 
 COPY ./CRYOWRF $CRYOWRF_SRC
 
-## Install MeteoIO & Snowpack
-# RUN mkdir -p $CRYOWRF_SRC/snpack_for_wrf/meteoio/build
+## Install MeteoIO
 WORKDIR $CRYOWRF_SRC/snpack_for_wrf/meteoio/build
 RUN cmake -DCMAKE_INSTALL_PREFIX=$SNOWLIBS .. \
     && make -j9 && make install
 
 # Build Snowpack
-# mkdir -p $CRYOWRF_SRC/snpack_for_wrf/snowpack/build
 WORKDIR $CRYOWRF_SRC/snpack_for_wrf/snowpack/build
 RUN cmake -DMETEOIO_INCLUDE_DIR=$SNOWLIBS/include \
     -DMETEOIO_LIBRARY=$SNOWLIBS/lib/libmeteoio.a \
     -DCMAKE_INSTALL_PREFIX=$SNOWLIBS .. \
     && make -j9 && make install
 
+# Build Coupler
 WORKDIR $CRYOWRF_SRC/snpack_for_wrf/main_coupler
 RUN gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 coupler_mod.f90 -I$SNOWLIBS/include \
     && gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 funcs.f90 -I$SNOWLIBS/include \
@@ -72,3 +71,12 @@ RUN gfortran -c -O3 -g -fbacktrace -ffree-line-length-512 coupler_mod.f90 -I$SNO
     && mkdir -p $SNOWLIBS/include/coupler \
     && mv *.mod $SNOWLIBS/include/coupler \
     && make clean
+
+# Build WRF
+WORKDIR $CRYOWRF_SRC/WRF
+
+RUN sed -i 's#$NETCDF/lib#$NETCDF/lib/x86_64-linux-gnu#g' configure
+RUN echo 35 | ./configure
+RUN sed -i 's#-L/usr/lib -lnetcdff -lnetcdf#-L/usr/lib/x86_64-linux-gnu -lnetcdff -lnetcdf#g' configure.wrf
+RUN if [ $(gfortran -dumpversion | cut -c1) -lt 8 ] && [ $(gfortran -dumpversion | cut -c1) -ge 6 ]; then sed -i '/-DBUILD_RRTMG_FAST=1/d' configure.wrf ; fi
+RUN tcsh ./compile -j 12 em_real

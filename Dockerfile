@@ -80,3 +80,20 @@ RUN echo 35 | ./configure
 RUN sed -i 's#-L/usr/lib -lnetcdff -lnetcdf#-L/usr/lib/x86_64-linux-gnu -lnetcdff -lnetcdf#g' configure.wrf
 RUN if [ $(gfortran -dumpversion | cut -c1) -lt 8 ] && [ $(gfortran -dumpversion | cut -c1) -ge 6 ]; then sed -i '/-DBUILD_RRTMG_FAST=1/d' configure.wrf ; fi
 RUN tcsh ./compile -j 12 em_real
+
+
+# Build WPS
+WORKDIR $CRYOWRF_SRC/WPS
+
+RUN echo 2 | ./configure
+# RUN sed -i '63c\SFC             =     mpif90' configure.wps
+# RUN echo gcc --version
+RUN tcsh ./clean
+RUN sed -i '163s/.*/    NETCDFF="-lnetcdff"/' configure
+RUN sed -i "s/standard_wrf_dirs=.*/standard_wrf_dirs=\"WRF WRF-4.0.3 WRF-4.0.2 WRF-4.0.1 WRF-4.0 WRFV3\"/" configure
+RUN echo 3 | ./configure
+RUN tcsh ./compile
+# RUN sed -i "s# geog_data_path.*# geog_data_path = '../WPS_GEOG/'#" namelist.wps
+
+
+# RUN tcsh ./compile

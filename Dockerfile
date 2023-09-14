@@ -22,9 +22,9 @@ ARG LD_LIBRARY_PATH=/usr/lib
 
 WORKDIR $DIR
 
-COPY sources.sh $DIR
-RUN chmod +x sources.sh
-RUN bash ./sources.sh
+RUN apt-get update && apt-get install -y build-essential csh gfortran m4 \
+    curl perl libpng-dev netcdf-bin libnetcdff-dev cmake tcsh libopenmpi-dev \
+    libhdf5-openmpi-dev
 
 # Install Jasper
 RUN wget https://www2.mmm.ucar.edu/wrf/OnLineTutorial/compile_tutorial/tar_files/jasper-1.900.1.tar.gz -O jasper-1.900.1.tar.gz

@@ -1,9 +1,0 @@
-# Download and unpack sources
-FROM ubuntu:22.04 as download_stage
-
-RUN apt-get update \
-    && apt-get install -y wget git sudo
-WORKDIR /tmp
-
-COPY ./WRF4.2.2_Install.bash /tmp/
-RUN bash ./WRF4.2.2_Install.bash
